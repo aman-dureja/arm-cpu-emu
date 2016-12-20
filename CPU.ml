@@ -5,6 +5,8 @@ class cpu =
       (* General Setup *)
       val minReg = 0
       val maxReg = 31
+      val pc = 0
+      val stackPointer = 0
       val mutable generalRegisters : int array array = Array.make 32 [||]
       (* Interstage Registers *)
       val mutable rA : int array = Array.make 32 0
@@ -15,6 +17,7 @@ class cpu =
       (* Methods *)
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
+      method loadProgramInMem = ()
       method fetch = ()
       method decode = ()
       method execute = ()
