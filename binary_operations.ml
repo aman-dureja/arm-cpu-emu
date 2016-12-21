@@ -37,3 +37,27 @@ let rec binary_of_int n =
     done;
     bin;
   end;;
+
+let plus op1 op2 =
+  let carry = ref false in
+  let sum = Array.make 32 false in
+  for i = (Array.length op1) - 1 downto 0 do
+    match (op1.(i), op2.(i), !carry) with
+      | (false, false, false) -> ();
+      | (false, false, true) -> sum.(i) <- true; carry := false;
+      | (false, true, false) -> sum.(i) <- true;
+      | (false, true, true) -> carry := true;
+      | (true, false, false) -> sum.(i) <- true;
+      | (true, false, true) -> carry := true;
+      | (true, true, false) -> carry := true;
+      | (true, true, true) -> sum.(i) <- true; carry := true;
+  done;
+  sum;;
+
+let minus op1 op2 =
+  plus op1 (twos_compl op2);;
+
+(* let test = plus (Array.make 32 true) (binary_of_int 2);;
+for i = 0 to (Array.length test) - 1 do
+  print_endline (string_of_bool test.(i));
+done;; *)
