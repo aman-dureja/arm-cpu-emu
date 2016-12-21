@@ -36,7 +36,8 @@ class cpu =
           | "minus" -> ()
           | _ -> failwith "Invalid ALU command!";
       method fetch =
-        ir = Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned generalRegisters.(pc + 1));
+        ir = Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned (plus generalRegisters.(pc) (binary_of_int 1)));
+        generalRegisters.(pc) <- plus generalRegisters.(pc) (binary_of_int 2);
         self#decode;
       method decode =
 
