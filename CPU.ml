@@ -1,26 +1,51 @@
 (* The main CPU object *)
 
+open Binary_operations;;
+
+(* IMPLEMENTS ARMV7 CORTEX WITH THUMB INSTRUCTION SET *)
+(* TO DO: add/sub instructions, then mult/div, then branch with no condition
+    codes, then at the very end, implement condition codes. *)
+
+(* Central Processing Unit *)
 class cpu =
-    object
+    object (self)
       (* General Setup *)
       val minReg = 0
-      val maxReg = 31
-      val pc = 0
-      val stackPointer = 0
-      val mutable generalRegisters : int array array = Array.make 32 [||]
+      val maxReg = 15
+      val pc = 15
+      val stackPointer = 13
+      val linkRegister = 14
+      val mutable generalRegisters : bool array array = Array.make 32 [||]
+      val mutable memory : bool array array = Array.make 2048 [||]
       (* Interstage Registers *)
-      val mutable rA : int array = Array.make 32 0
-      val mutable rB : int array = Array.make 32 0
-      val mutable rM : int array = Array.make 32 0
-      val mutable rZ : int array = Array.make 32 0
-      val mutable rY : int array = Array.make 32 0
-      (* Methods *)
+      val mutable rA : bool array = Array.make 32 false
+      val mutable rB : bool array = Array.make 32 false
+      val mutable rM : bool array = Array.make 32 false
+      val mutable rZ : bool array = Array.make 32 false
+      val mutable rY : bool array = Array.make 32 false
+      (* Instruction Register *)
+      val mutable ir : bool array = Array.make 16 false
+      (* Methods and Instruction Execution Stages *)
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
+      method printState = ()
       method loadProgramInMem = ()
-      method fetch = ()
-      method decode = ()
-      method execute = ()
-      method memory = ()
+      method aluOp command =
+        match command with
+          | "plus" -> ()
+          | "minus" -> ()
+          | _ -> failwith "Invalid ALU command!"
+      method fetch =
+        ir = Array.copy memory.(0);
+        self#decode
+      method decode =
+
+        self#execute
+      method execute =
+
+        self#memory
+      method memory =
+
+        self#writeback
       method writeback = ()
     end
