@@ -33,6 +33,7 @@ let rec binary_of_int n =
         match !num mod 2 with
           | 0 -> bin.(i) <- false; num := !num / 2;
           | 1 -> bin.(i) <- true; num := !num / 2;
+          | _ -> failwith "Something is terribly wrong with modular arithmetic!"
       end;
     done;
     bin;
@@ -56,8 +57,3 @@ let plus op1 op2 =
 
 let minus op1 op2 =
   plus op1 (twos_compl op2);;
-
-(* let test = plus (Array.make 32 true) (binary_of_int 2);;
-for i = 0 to (Array.length test) - 1 do
-  print_endline (string_of_bool test.(i));
-done;; *)
