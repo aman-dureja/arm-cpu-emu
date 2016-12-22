@@ -34,7 +34,7 @@ class cpu =
       (* Methods and Instruction Execution Stages *)
 
       (* Below method exclusively for testing! *)
-      method setIr bin = ir <- bin
+      method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
 
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
@@ -71,9 +71,9 @@ class cpu =
                   | false -> operation <- "plus"
                   | true -> operation <- "minus"
                 );
-                rA <- [|ir.(10); ir.(11); ir.(12)|];
-                dest <- int_of_binary_unsigned [|ir.(13); ir.(14); ir.(15)|]
-                end
+                rA <- Array.append (Array.make 29 ir.(10)) [|ir.(10); ir.(11); ir.(12)|];
+                dest <- int_of_binary_unsigned [|ir.(13); ir.(14); ir.(15)|];
+                end;
 
               (* Move Shifted Register instruction *)
               | _ -> ()
