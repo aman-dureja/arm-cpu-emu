@@ -71,3 +71,47 @@ let logical_shift_right op1 =
     shifted.(i+1) <- op1.(i)
   done;
   shifted;;
+
+let arith_shift_left op1 =
+  let shifted = Array.make (Array.length op1) false in
+  for i = 1 to (Array.length op1) - 1 do
+    shifted.(i-1) <- op1.(i)
+  done;
+  shifted.((Array.length shifted) - 1) <- op1.(0);
+  shifted;;
+
+let arith_shift_right op1 =
+  let shifted = Array.make (Array.length op1) false in
+  for i = 0 to (Array.length op1) - 2 do
+    shifted.(i+1) <- op1.(i)
+  done;
+  shifted.(0) <- op1.((Array.length op1) - 1);
+  shifted;;
+
+let logical_and op1 op2 =
+  let anded = Array.make (Array.length op1) false in
+  for i = 0 to (Array.length op1) - 1 do
+    if op1.(i) && op2.(i) then anded.(i) <- true
+  done;
+  anded;;
+
+let logical_or op1 op2 =
+  let ored = Array.make (Array.length op1) false in
+  for i = 0 to (Array.length op1) - 1 do
+    if op1.(i) || op2.(i) then ored.(i) <- true
+  done;
+  ored;;
+
+let logical_xor op1 op2 =
+  let xored = Array.make (Array.length op1) false in
+  for i = 0 to (Array.length op1) - 1 do
+    if (op1.(i) || op2.(i)) && not (op1.(i) && op2.(i)) then xored.(i) <- true;
+  done;
+  xored;;
+
+let logical_not op1 op2 =
+  let noted = Array.make (Array.length op1) false in
+  for i = 0 to (Array.length op1) - 1 do
+    if not op1.(i) then noted.(i) <- true
+  done;
+  noted;;

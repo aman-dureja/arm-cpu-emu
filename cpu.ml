@@ -55,29 +55,86 @@ class cpu =
         self#decode
 
       method decode =
-        (match (ir.(0), ir.(1), ir.(2)) with
+        let testBin = Array.sub ir 0 3 in
+        (match testBin with
 
           (* Add/Sub or Move Shifted Register instruction *)
-          | (false, false, false) ->
+          | [|false; false; false|] ->
             (match (ir.(3), ir.(4)) with
 
               (* Add/Sub instruction *)
-              | (true, true) -> begin
+              | (true, true) ->
                 (match ir.(5) with
-                  | false -> muxB <- generalRegisters.(int_of_binary_unsigned [|ir.(7); ir.(8); ir.(9)|])
-                  | true -> muxB <- Array.append (Array.make 29 ir.(7)) [|ir.(7); ir.(8); ir.(9)|]
+                  | false -> muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 7 3))
+                  | true -> muxB <- Array.append (Array.make 29 ir.(7)) (Array.sub ir 7 3)
                 );
                 (match ir.(6) with
                   | false -> operation <- "plus"
                   | true -> operation <- "minus"
                 );
-                rA <- Array.append (Array.make 29 ir.(10)) [|ir.(10); ir.(11); ir.(12)|];
-                dest <- int_of_binary_unsigned [|ir.(13); ir.(14); ir.(15)|];
-                end;
+                rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+                dest <- int_of_binary_unsigned (Array.sub ir 13 3)
 
               (* Move Shifted Register instruction *)
               | _ -> ()
             );
+
+          (* Move/Compare/Add/Sub immediate *)
+          | [|false; false; true|] ->
+            dest <- int_of_binary_unsigned (Array.sub ir 5 3);
+            rA <- Array.append (Array.make 26 ir.(8)) (Array.sub ir 8 8);
+            (match (ir.(3), ir.(4)) with
+
+              | (false, false) ->
+                operation <- "plus";
+                muxB <- Array.make 32 false
+
+              | (false, true) -> operation <- "compare" (* TODO: implement this *)
+
+              | (true, false) ->
+                operation <- "plus";
+                muxB <- generalRegisters.(dest)
+
+              | (true, true) ->
+                operation <- "minus";
+                muxB <- generalRegisters.(dest)
+            );
+
+          | [|false; true; false|] ->
+            match (ir.(3), ir.(4)) with
+
+              | (false, false) ->
+                (match ir.(5) with
+
+                  | false ->
+                    dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+                    rA <- generalRegisters.(dest);
+                    muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+                    (let opArray = Array.sub ir 6 4 in
+                      match opArray with
+                        | [|false; false; false; false|] -> operation <- "and"
+                        | [|false; false; false; true|] -> operation <- "eor"
+                        | [|false; false; true; false|] -> operation <- "lsl"
+                        | [|false; false; true; true|] -> operation <- "lsr"
+                        | [|false; true; false; false|] -> operation <- "asr"
+                        | [|false; true; false; true|] -> operation <- "adc"
+                        | [|false; true; true; false|] -> operation <- "sbc"
+                        | [|false; true; true; true|] -> operation <- "ror"
+                        | [|true; false; false; false|] -> operation <- "tst"
+                        | [|true; false; false; true|] -> operation <- "neg"
+                        | [|true; false; true; false|] -> operation <- "cmp"
+                        | [|true; false; true; true|] -> operation <- "cmn"
+                        | [|true; true; false; false|] -> operation <- "orr"
+                        | [|true; true; false; true|] -> operation <- "mul"
+                        | [|true; true; true; false|] -> operation <- "bic"
+                        | [|true; true; true; true|] -> operation <- "mvn"
+                    )
+
+                  | true -> ()
+
+                );
+
+              | _ -> ()
 
           | _ -> failwith "Error! Invalid opcode!"
         );
