@@ -118,9 +118,12 @@ class cpu =
             );
 
           | [|false; true; false|] ->
-            (match (ir.(3), ir.(4)) with
+            (match ir.(3) with
 
-              | (false, false) ->
+              | false ->
+              (match ir.(4) with
+
+                | false ->
                 (match ir.(5) with
 
                   | false ->
@@ -148,11 +151,12 @@ class cpu =
                     )
 
                   | true -> ()
-
                 );
 
-              | _ -> ()
+                | true -> ()
+              );
 
+              | true -> ()
             );
 
           | _ -> failwith "Error! Invalid opcode!"
