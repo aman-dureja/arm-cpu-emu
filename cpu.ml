@@ -45,8 +45,8 @@ class cpu =
 
       method aluOp command =
         match command with
-          | "plus" -> rZ <- plus rA muxB
-          | "minus" -> rZ <- minus rA muxB
+          | "add" -> rZ <- plus rA muxB
+          | "sub" -> rZ <- minus rA muxB
           | _ -> failwith "Invalid ALU command!"
 
       method fetch =
@@ -69,8 +69,8 @@ class cpu =
                   | true -> muxB <- Array.append (Array.make 29 ir.(7)) (Array.sub ir 7 3)
                 );
                 (match ir.(6) with
-                  | false -> operation <- "plus"
-                  | true -> operation <- "minus"
+                  | false -> operation <- "add"
+                  | true -> operation <- "sub"
                 );
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3)
@@ -86,17 +86,17 @@ class cpu =
             (match (ir.(3), ir.(4)) with
 
               | (false, false) ->
-                operation <- "plus";
+                operation <- "add";
                 muxB <- Array.make 32 false
 
-              | (false, true) -> operation <- "compare" (* TODO: implement this *)
+              | (false, true) -> operation <- "cmp" (* TODO: implement this *)
 
               | (true, false) ->
-                operation <- "plus";
+                operation <- "add";
                 muxB <- generalRegisters.(dest)
 
               | (true, true) ->
-                operation <- "minus";
+                operation <- "sub";
                 muxB <- generalRegisters.(dest)
             );
 
