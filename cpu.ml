@@ -17,7 +17,7 @@ class cpu =
       val stackPointer = 13
       val linkRegister = 14
       val mutable dest = 0
-      val mutable generalRegisters : bool array array = Array.make 32 (Array.make 32 false)
+      val mutable generalRegisters : bool array array = Array.make 16 (Array.make 32 false)
       val mutable memory : bool array array = Array.make 2048 (Array.make 8 false)
       val mutable operation : string = "none"
       val mutable memoryOp : bool = false
@@ -36,10 +36,27 @@ class cpu =
       (* Below method exclusively for testing! *)
       method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
 
+      method ba_of_bs bs =
+        let boolArray = Array.make (String.length bs) false in
+        for i = 0 to (String.length bs) - 1 do
+          if bs.[i] == '1' then boolArray.(i) <- true
+        done;
+        boolArray
+
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
 
-      method printState = ()
+      method printState =
+        let boolsToInts a = Array.map (fun x -> if x then 1 else 0) a in
+        for i = 0 to (Array.length generalRegisters) - 1 do
+          let ints = boolsToInts generalRegisters.(i) in
+          Printf.printf "%d: " i;
+          if i < 10 then Printf.printf " ";
+          for j = 0 to (Array.length ints) - 1 do
+            Printf.printf "%d" ints.(j)
+          done;
+          Printf.printf "\n";
+        done
 
       method loadProgramInMem = ()
 
@@ -101,7 +118,7 @@ class cpu =
             );
 
           | [|false; true; false|] ->
-            match (ir.(3), ir.(4)) with
+            (match (ir.(3), ir.(4)) with
 
               | (false, false) ->
                 (match ir.(5) with
@@ -135,6 +152,8 @@ class cpu =
                 );
 
               | _ -> ()
+
+            );
 
           | _ -> failwith "Error! Invalid opcode!"
         );

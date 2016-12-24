@@ -3,7 +3,14 @@ open Binary_operations;;
 
 let processor = new cpu;;
 
-processor#setIr [|false; false; false; true; true|];;
+let boolArray = processor#ba_of_bs "000011110101";;
+for i = 0 to (Array.length boolArray) - 1 do
+  print_endline (string_of_bool boolArray.(i))
+done;;
+
+processor#printState;;
+
+processor#setIr [|true; false; false; true; true|];;
 processor#decode;;
 
 let testShiftLeft = logical_shift_left [|true; false; true;|];;
