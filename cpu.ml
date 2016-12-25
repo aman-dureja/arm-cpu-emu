@@ -126,6 +126,7 @@ class cpu =
                 | false ->
                 (match ir.(5) with
 
+                  (* ALU Operations *)
                   | false ->
                     dest <- int_of_binary_unsigned (Array.sub ir 13 3);
                     rA <- generalRegisters.(dest);
@@ -150,7 +151,22 @@ class cpu =
                         | [|true; true; true; true|] -> operation <- "mvn"
                     )
 
-                  | true -> ()
+                  (* Hi Register Operations *)
+                  | true ->
+                  (match ir.(8) with
+                    | false -> rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 13 3))
+                    | true -> rA <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 13 3)) + 8)
+                  );
+                  (match ir.(9) with
+                    | false -> muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3))
+                    | true -> muxB <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 10 3)) + 8)
+                  );
+                  (match (ir.(6), ir.(7)) with
+                    | (false, false) -> operation <- "add"
+                    | (false, true) -> operation <- "cmp"
+                    | (true, false) -> operation <- "mov"
+                    | (true, true) -> operation <- "bx"
+                  );
                 );
 
                 | true -> ()
@@ -159,7 +175,7 @@ class cpu =
               | true -> ()
             );
 
-          | _ -> failwith "Error! Invalid opcode!"
+          | _ -> failwith "Error! Invalid instruction!"
         );
         self#execute
 
