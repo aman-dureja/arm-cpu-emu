@@ -21,6 +21,7 @@ class cpu =
       val mutable memory : bool array array = Array.make 2048 (Array.make 8 false)
       val mutable operation : string = "none"
       val mutable memoryOp : bool = false
+      val mutable memOperation : string = "none"
       (* Interstage Registers *)
       val mutable rA : bool array = Array.make 32 false
       val mutable rM : bool array = Array.make 32 false
@@ -153,26 +154,35 @@ class cpu =
 
                   (* Hi Register Operations *)
                   | true ->
-                  (match ir.(8) with
-                    | false -> rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 13 3))
-                    | true -> rA <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 13 3)) + 8)
+                    (match ir.(8) with
+                      | false -> rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 13 3))
+                      | true -> rA <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 13 3)) + 8)
+                    );
+                    (match ir.(9) with
+                      | false -> muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3))
+                      | true -> muxB <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 10 3)) + 8)
+                    );
+                    (match (ir.(6), ir.(7)) with
+                      | (false, false) -> operation <- "add"
+                      | (false, true) -> operation <- "cmp"
+                      | (true, false) -> operation <- "mov"
+                      | (true, true) -> operation <- "bx"
+                    );
                   );
-                  (match ir.(9) with
-                    | false -> muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3))
-                    | true -> muxB <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 10 3)) + 8)
-                  );
-                  (match (ir.(6), ir.(7)) with
-                    | (false, false) -> operation <- "add"
-                    | (false, true) -> operation <- "cmp"
-                    | (true, false) -> operation <- "mov"
-                    | (true, true) -> operation <- "bx"
-                  );
+
+                (* PC Relative Load *)
+                | true ->
+                  operation <- "add";
+                  memoryOp <- true;
+                  memOperation <- "ldr";
+                  dest <- int_of_binary_unsigned (Array.sub ir 5 3);
+                  rA <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
+                  muxB <- generalRegisters.(15)
                 );
 
-                | true -> ()
-              );
-
+              (* Load/store with register offset *)
               | true -> ()
+
             );
 
           | _ -> failwith "Error! Invalid instruction!"
