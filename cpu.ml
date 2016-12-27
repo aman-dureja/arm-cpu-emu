@@ -3,8 +3,8 @@
 open Binary_operations;;
 
 (* IMPLEMENTS ARMV7 CORTEX WITH THUMB INSTRUCTION SET *)
-(* TO DO: add/sub instructions, then mult/div, then branch with no condition
-    codes, then at the very end, implement condition codes. *)
+(* TODO: implement condition codes *)
+(* TODO: fix bit shifted things for stuff like Offset5 and Word8, etc *)
 
 (* Central Processing Unit *)
 class cpu =
@@ -22,6 +22,7 @@ class cpu =
       val mutable operation : string = "none"
       val mutable memoryOp : bool = false
       val mutable memOperation : string = "none"
+      val mutable byteWordLoadStoreFlag : string = "none"
       (* Interstage Registers *)
       val mutable rA : bool array = Array.make 32 false
       val mutable rM : bool array = Array.make 32 false
@@ -178,12 +179,134 @@ class cpu =
                   dest <- int_of_binary_unsigned (Array.sub ir 5 3);
                   rA <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
                   muxB <- generalRegisters.(15)
-                );
+              )
 
-              (* Load/store with register offset *)
+              | true ->
+                memoryOp <- true;
+                operation <- "add";
+                rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+                muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 7 3));
+                dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+                (match ir.(6) with
+
+                  (* Load/store with register offset *)
+                  | false ->
+                    (match ir.(4) with
+                      | false -> memOperation <- "str"
+                      | true -> memOperation <- "ldr"
+                    );
+                    (match ir.(5) with
+                      | false -> byteWordLoadStoreFlag <- "word"
+                      | true -> byteWordLoadStoreFlag <- "byte"
+                    )
+
+                  (* Load/store sign-extended byte/halfword *)
+                  | true ->
+                    (match (ir.(5), ir.(4)) with
+                      | (false, false) -> memOperation <- "strh"
+                      | (false, true) -> memOperation <- "ldrh"
+                      | (true, false) -> memOperation <- "ldsb"
+                      | (true, true) -> memOperation <- "ldsh"
+                    );
+                )
+            );
+
+          (* Load/store with immediate offset *)
+          | [|false; true; true|] ->
+            memoryOp <- true;
+            operation <- "add";
+            rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+            muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
+            dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+            (match (ir.(4), ir.(3)) with
+              | (false, false) -> memOperation <- "str"
+              | (false, true) -> memOperation <- "ldr"
+              | (true, false) -> memOperation <- "strb"
+              | (true, true) -> memOperation <- "ldrb"
+            )
+
+          | [|true; false; false|] ->
+            (match ir.(3) with
+
+              (* Load/store halfword *)
+              | false ->
+                memoryOp <- true;
+                operation <- "add";
+                rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+                muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
+                dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+                (match ir.(4) with
+                  | false -> memOperation <- "strh"
+                  | true -> memOperation <- "ldrh"
+                )
+
+              (* SP-relative load/store *)
+              | true ->
+                memoryOp <- true;
+                dest <- int_of_binary_unsigned (Array.sub ir 5 3);
+                rA <- generalRegisters.(13);
+                muxB <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
+                operation <- "add";
+                (match ir.(4) with
+                  | false -> memOperation <- "str"
+                  | true -> memOperation <- "ldr"
+                )
+            )
+
+          | [|true; false; true|] ->
+            (match ir.(3) with
+
+              (* Load address *)
+              | false ->
+                muxB <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
+                operation <- "add";
+                dest <- int_of_binary_unsigned (Array.sub ir 5 3);
+                memoryOp <- false;
+                (match ir.(4) with
+                  | false -> rA <- generalRegisters.(pc)
+                  | true -> rA <- generalRegisters.(stackPointer)
+                )
+
+              | true ->
+                (match ir.(5) with
+
+                  (* Add offset to Stack Pointer *)
+                  | false ->
+                    memoryOp <- false;
+                    rA <- generalRegisters.(stackPointer);
+                    muxB <- Array.append (Array.make 25 false) (Array.sub ir 9 7);
+                    (match ir.(8) with
+                      | false -> operation <- "add"
+                      | true -> operation <- "sub"
+                    )
+
+                  (* Push/pop registers *)
+                  | true ->
+                    memoryOp <- true;
+                    (* TODO *)
+                )
+            )
+
+          | [|true; true; false|] ->
+            (match ir.(3) with
+
+              (* Multiple load/store *)
+              | false -> ()
+
+              (* Unconditional branch *)
               | true -> ()
 
-            );
+            )
+
+          | [|true; true; true|] ->
+            (match ir.(3) with
+
+              (* Unconditional branch *)
+              | false -> ()
+
+              (* Long branch with link *)
+              | true -> ()
+            )
 
           | _ -> failwith "Error! Invalid instruction!"
         );
