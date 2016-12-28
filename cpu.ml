@@ -22,6 +22,8 @@ class cpu =
       val mutable operation : string = "none"
       val mutable memoryOp : bool = false
       val mutable memOperation : string = "none"
+      val mutable regList : int array = [||]
+      val mutable baseReg : int = 0
       val mutable byteWordLoadStoreFlag : string = "none"
       (* Interstage Registers *)
       val mutable rA : bool array = Array.make 32 false
@@ -50,23 +52,16 @@ class cpu =
 
       method printState =
         let boolsToInts a = Array.map (fun x -> if x then 1 else 0) a in
-        for i = 0 to (Array.length generalRegisters) - 1 do
+        let printReg i reg =
           let ints = boolsToInts generalRegisters.(i) in
           Printf.printf "%d: " i;
           if i < 10 then Printf.printf " ";
-          for j = 0 to (Array.length ints) - 1 do
-            Printf.printf "%d" ints.(j)
-          done;
-          Printf.printf "\n";
-        done
+          Array.iter (fun x -> Printf.printf "%d" x) ints;
+          Printf.printf "\n"
+        in
+        Array.iteri printReg generalRegisters
 
       method loadProgramInMem = ()
-
-      method aluOp command =
-        match command with
-          | "add" -> rZ <- plus rA muxB
-          | "sub" -> rZ <- minus rA muxB
-          | _ -> failwith "Invalid ALU command!"
 
       method fetch =
         ir <- Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned (plus generalRegisters.(pc) (binary_of_int 1)));
@@ -88,8 +83,8 @@ class cpu =
                   | true -> muxB <- Array.append (Array.make 29 ir.(7)) (Array.sub ir 7 3)
                 );
                 (match ir.(6) with
-                  | false -> operation <- "add"
-                  | true -> operation <- "sub"
+                  | false -> operation <- "ADD"
+                  | true -> operation <- "SUB"
                 );
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3)
@@ -105,17 +100,17 @@ class cpu =
             (match (ir.(3), ir.(4)) with
 
               | (false, false) ->
-                operation <- "add";
+                operation <- "ADD";
                 muxB <- Array.make 32 false
 
-              | (false, true) -> operation <- "cmp" (* TODO: implement this *)
+              | (false, true) -> operation <- "CMP" (* TODO: implement this *)
 
               | (true, false) ->
-                operation <- "add";
+                operation <- "ADD";
                 muxB <- generalRegisters.(dest)
 
               | (true, true) ->
-                operation <- "sub";
+                operation <- "SUB";
                 muxB <- generalRegisters.(dest)
             );
 
@@ -135,22 +130,22 @@ class cpu =
                     muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                     (let opArray = Array.sub ir 6 4 in
                       match opArray with
-                        | [|false; false; false; false|] -> operation <- "and"
-                        | [|false; false; false; true|] -> operation <- "eor"
-                        | [|false; false; true; false|] -> operation <- "lsl"
-                        | [|false; false; true; true|] -> operation <- "lsr"
-                        | [|false; true; false; false|] -> operation <- "asr"
-                        | [|false; true; false; true|] -> operation <- "adc"
-                        | [|false; true; true; false|] -> operation <- "sbc"
-                        | [|false; true; true; true|] -> operation <- "ror"
-                        | [|true; false; false; false|] -> operation <- "tst"
-                        | [|true; false; false; true|] -> operation <- "neg"
-                        | [|true; false; true; false|] -> operation <- "cmp"
-                        | [|true; false; true; true|] -> operation <- "cmn"
-                        | [|true; true; false; false|] -> operation <- "orr"
-                        | [|true; true; false; true|] -> operation <- "mul"
-                        | [|true; true; true; false|] -> operation <- "bic"
-                        | [|true; true; true; true|] -> operation <- "mvn"
+                        | [|false; false; false; false|] -> operation <- "AND"
+                        | [|false; false; false; true|] -> operation <- "EOR"
+                        | [|false; false; true; false|] -> operation <- "LSL"
+                        | [|false; false; true; true|] -> operation <- "LSR"
+                        | [|false; true; false; false|] -> operation <- "ASR"
+                        | [|false; true; false; true|] -> operation <- "ADC"
+                        | [|false; true; true; false|] -> operation <- "SBC"
+                        | [|false; true; true; true|] -> operation <- "ROR"
+                        | [|true; false; false; false|] -> operation <- "TST"
+                        | [|true; false; false; true|] -> operation <- "NEG"
+                        | [|true; false; true; false|] -> operation <- "CMP"
+                        | [|true; false; true; true|] -> operation <- "CMN"
+                        | [|true; true; false; false|] -> operation <- "ORR"
+                        | [|true; true; false; true|] -> operation <- "MUL"
+                        | [|true; true; true; false|] -> operation <- "BIC"
+                        | [|true; true; true; true|] -> operation <- "MVN"
                     )
 
                   (* Hi Register Operations *)
@@ -164,18 +159,18 @@ class cpu =
                       | true -> muxB <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 10 3)) + 8)
                     );
                     (match (ir.(6), ir.(7)) with
-                      | (false, false) -> operation <- "add"
-                      | (false, true) -> operation <- "cmp"
-                      | (true, false) -> operation <- "mov"
-                      | (true, true) -> operation <- "bx"
+                      | (false, false) -> operation <- "ADD"
+                      | (false, true) -> operation <- "CMP"
+                      | (true, false) -> operation <- "MOV"
+                      | (true, true) -> operation <- "BX"
                     );
                   );
 
                 (* PC Relative Load *)
                 | true ->
-                  operation <- "add";
+                  operation <- "ADD";
                   memoryOp <- true;
-                  memOperation <- "ldr";
+                  memOperation <- "LDR";
                   dest <- int_of_binary_unsigned (Array.sub ir 5 3);
                   rA <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
                   muxB <- generalRegisters.(15)
@@ -183,7 +178,7 @@ class cpu =
 
               | true ->
                 memoryOp <- true;
-                operation <- "add";
+                operation <- "ADD";
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                 muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 7 3));
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3);
@@ -192,8 +187,8 @@ class cpu =
                   (* Load/store with register offset *)
                   | false ->
                     (match ir.(4) with
-                      | false -> memOperation <- "str"
-                      | true -> memOperation <- "ldr"
+                      | false -> memOperation <- "STR"
+                      | true -> memOperation <- "LDR"
                     );
                     (match ir.(5) with
                       | false -> byteWordLoadStoreFlag <- "word"
@@ -203,10 +198,10 @@ class cpu =
                   (* Load/store sign-extended byte/halfword *)
                   | true ->
                     (match (ir.(5), ir.(4)) with
-                      | (false, false) -> memOperation <- "strh"
-                      | (false, true) -> memOperation <- "ldrh"
-                      | (true, false) -> memOperation <- "ldsb"
-                      | (true, true) -> memOperation <- "ldsh"
+                      | (false, false) -> memOperation <- "STRH"
+                      | (false, true) -> memOperation <- "LDRH"
+                      | (true, false) -> memOperation <- "LDSB"
+                      | (true, true) -> memOperation <- "LDSH"
                     );
                 )
             );
@@ -214,15 +209,15 @@ class cpu =
           (* Load/store with immediate offset *)
           | [|false; true; true|] ->
             memoryOp <- true;
-            operation <- "add";
+            operation <- "ADD";
             rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
             muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
             dest <- int_of_binary_unsigned (Array.sub ir 13 3);
             (match (ir.(4), ir.(3)) with
-              | (false, false) -> memOperation <- "str"
-              | (false, true) -> memOperation <- "ldr"
-              | (true, false) -> memOperation <- "strb"
-              | (true, true) -> memOperation <- "ldrb"
+              | (false, false) -> memOperation <- "STR"
+              | (false, true) -> memOperation <- "LDR"
+              | (true, false) -> memOperation <- "STRB"
+              | (true, true) -> memOperation <- "LDRB"
             )
 
           | [|true; false; false|] ->
@@ -231,13 +226,13 @@ class cpu =
               (* Load/store halfword *)
               | false ->
                 memoryOp <- true;
-                operation <- "add";
+                operation <- "ADD";
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                 muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3);
                 (match ir.(4) with
-                  | false -> memOperation <- "strh"
-                  | true -> memOperation <- "ldrh"
+                  | false -> memOperation <- "STRH"
+                  | true -> memOperation <- "LDRH"
                 )
 
               (* SP-relative load/store *)
@@ -246,10 +241,10 @@ class cpu =
                 dest <- int_of_binary_unsigned (Array.sub ir 5 3);
                 rA <- generalRegisters.(13);
                 muxB <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
-                operation <- "add";
+                operation <- "ADD";
                 (match ir.(4) with
-                  | false -> memOperation <- "str"
-                  | true -> memOperation <- "ldr"
+                  | false -> memOperation <- "STR"
+                  | true -> memOperation <- "LDR"
                 )
             )
 
@@ -259,7 +254,7 @@ class cpu =
               (* Load address *)
               | false ->
                 muxB <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
-                operation <- "add";
+                operation <- "ADD";
                 dest <- int_of_binary_unsigned (Array.sub ir 5 3);
                 memoryOp <- false;
                 (match ir.(4) with
@@ -276,14 +271,22 @@ class cpu =
                     rA <- generalRegisters.(stackPointer);
                     muxB <- Array.append (Array.make 25 false) (Array.sub ir 9 7);
                     (match ir.(8) with
-                      | false -> operation <- "add"
-                      | true -> operation <- "sub"
+                      | false -> operation <- "ADD"
+                      | true -> operation <- "SUB"
                     )
 
                   (* Push/pop registers *)
                   | true ->
                     memoryOp <- true;
-                    (* TODO *)
+                    regList <- [||];
+                    let registerList = Array.sub ir 8 8 in
+                    Array.iteri (fun i x -> if x then regList <- Array.append regList [|i|]) registerList;
+                    (match (ir.(4), ir.(7)) with
+                      | (false, false) -> memOperation <- "PUSH"
+                      | (false, true) -> memOperation <- "PUSHLR"
+                      | (true, false) -> memOperation <- "POP"
+                      | (true, true) -> memOperation <- "POPPC"
+                    )
                 )
             )
 
@@ -291,9 +294,18 @@ class cpu =
             (match ir.(3) with
 
               (* Multiple load/store *)
-              | false -> ()
+              | false ->
+                memoryOp <- true;
+                regList <- [||];
+                baseReg <- int_of_binary_unsigned (Array.sub ir 5 3);
+                let registerList = Array.sub ir 8 8 in
+                Array.iteri (fun i x -> if x then regList <- Array.append regList [|i|]) registerList;
+                (match ir.(4) with
+                  | false -> memOperation <- "STMIA"
+                  | true -> memOperation <- "LDMIA"
+                )
 
-              (* Unconditional branch *)
+              (* Conditional branch *)
               | true -> ()
 
             )
@@ -312,14 +324,12 @@ class cpu =
         );
         self#execute
 
-      method doOperation =
-        match operation with
-          | "add" -> self#aluOp "plus";
-          | "subtract" -> self#aluOp "minus";
-          | _ -> failwith "Invalid operation to execute!"
-
       method execute =
-        self#doOperation;
+        (match operation with
+          | "ADD" -> rZ <- plus rA muxB
+          | "SUB" -> rZ <- minus rA muxB
+          | _ -> failwith "Invalid ALU command!"
+        );
         self#memory
 
       method memory =
