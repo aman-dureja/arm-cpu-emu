@@ -71,9 +71,9 @@ class cpu =
         self#decode
 
       method setConditionCodes =
-        conditionCodes.(0) <- rA.(0) = 1; (* N *)
+        conditionCodes.(0) <- rA.(0) = true; (* N *)
         conditionCodes.(1) <- int_of_binary_unsigned rA = 0; (* Z *)
-        conditionCodes.(2) <- () (* TODO: implement this *) (* C *)
+        (* TODO: implement Carry check *) (* C *)
         conditionCodes.(3) <- if rA.(0) = muxB.(0) && rZ.(0) != rA.(0) then true else false; (* V *)
 
       method decode =
