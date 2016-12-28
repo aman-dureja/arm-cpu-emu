@@ -13,9 +13,9 @@ class cpu =
       (* General Setup *)
       val minReg = 0
       val maxReg = 15
-      val pc = 15
-      val stackPointer = 13
-      val linkRegister = 14
+      val pc = 15 (* Program counter *)
+      val sp = 13 (* Stack pointer *)
+      val lr = 14 (* Link register *)
       val mutable dest = 0
       val mutable generalRegisters : bool array array = Array.make 16 (Array.make 32 false)
       val mutable memory : bool array array = Array.make 2048 (Array.make 8 false)
@@ -25,6 +25,8 @@ class cpu =
       val mutable regList : int array = [||]
       val mutable baseReg : int = 0
       val mutable byteWordLoadStoreFlag : string = "none"
+      (* Condition code array: [|N; Z; C; V|] *)
+      val mutable conditionCodes : bool array = Array.make 4 false;
       (* Interstage Registers *)
       val mutable rA : bool array = Array.make 32 false
       val mutable rM : bool array = Array.make 32 false
@@ -67,6 +69,12 @@ class cpu =
         ir <- Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned (plus generalRegisters.(pc) (binary_of_int 1)));
         generalRegisters.(pc) <- plus generalRegisters.(pc) (binary_of_int 2);
         self#decode
+
+      method setConditionCodes =
+        conditionCodes.(0) <- rA.(0) = 1; (* N *)
+        conditionCodes.(1) <- int_of_binary_unsigned rA = 0; (* Z *)
+        conditionCodes.(2) <- () (* TODO: implement this *) (* C *)
+        conditionCodes.(3) <- if rA.(0) = muxB.(0) && rZ.(0) != rA.(0) then true else false; (* V *)
 
       method decode =
         let testBin = Array.sub ir 0 3 in
@@ -259,7 +267,7 @@ class cpu =
                 memoryOp <- false;
                 (match ir.(4) with
                   | false -> rA <- generalRegisters.(pc)
-                  | true -> rA <- generalRegisters.(stackPointer)
+                  | true -> rA <- generalRegisters.(sp)
                 )
 
               | true ->
@@ -268,7 +276,7 @@ class cpu =
                   (* Add offset to Stack Pointer *)
                   | false ->
                     memoryOp <- false;
-                    rA <- generalRegisters.(stackPointer);
+                    rA <- generalRegisters.(sp);
                     muxB <- Array.append (Array.make 25 false) (Array.sub ir 9 7);
                     (match ir.(8) with
                       | false -> operation <- "ADD"
