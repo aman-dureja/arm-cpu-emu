@@ -1,2 +1,2 @@
 # arm-cpu-emu
-An ARMv7 CPU emulator written in OCaml
+An ARM7TDMI CPU core emulator written in OCaml. Implements the ARMv4T THUMB instruction set.
