@@ -2,8 +2,6 @@
 
 open Binary_operations;;
 
-(* IMPLEMENTS ARMV7 CORTEX WITH THUMB INSTRUCTION SET *)
-(* TODO: implement condition codes *)
 (* TODO: fix bit shifted things for stuff like Offset5 and Word8, etc *)
 
 (* Central Processing Unit *)
@@ -27,6 +25,7 @@ class cpu =
       val mutable byteWordLoadStoreFlag : string = "none"
       (* Condition code array: [|N; Z; C; V|] *)
       val mutable conditionCodes : bool array = Array.make 4 false;
+      val mutable shouldSetCondCodes : bool = false;
       (* Interstage Registers *)
       val mutable rA : bool array = Array.make 32 false
       val mutable rM : bool array = Array.make 32 false
@@ -42,13 +41,6 @@ class cpu =
       (* Below method exclusively for testing! *)
       method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
 
-      method ba_of_bs bs =
-        let boolArray = Array.make (String.length bs) false in
-        for i = 0 to (String.length bs) - 1 do
-          if bs.[i] == '1' then boolArray.(i) <- true
-        done;
-        boolArray
-
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
 
@@ -61,9 +53,13 @@ class cpu =
           Array.iter (fun x -> Printf.printf "%d" x) ints;
           Printf.printf "\n"
         in
-        Array.iteri printReg generalRegisters
+        Array.iteri printReg generalRegisters;
+        Printf.printf "RZ: ";
+        Array.iter (fun x -> Printf.printf "%d" x) (boolsToInts rZ);
+        Printf.printf "\n"
 
-      method loadProgramInMem = ()
+      method loadProgramInMem byteArray =
+        Array.iteri (fun i byte -> memory.(i) <- byte) byteArray
 
       method fetch =
         ir <- Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned (plus generalRegisters.(pc) (binary_of_int 1)));
@@ -73,14 +69,17 @@ class cpu =
       method setConditionCodes =
         conditionCodes.(0) <- rA.(0) = true; (* N *)
         conditionCodes.(1) <- int_of_binary_unsigned rA = 0; (* Z *)
-        (* TODO: implement Carry check *) (* C *)
+        (* C *)
+        if operation = "ADD" then
+          if comp_lt_unsigned rZ rA || comp_lt_unsigned rZ muxB then conditionCodes.(2) <- true
+        else if operation = "SUB" then
+          if comp_lt_unsigned muxB rA then conditionCodes.(2) <- true;
         conditionCodes.(3) <- if rA.(0) = muxB.(0) && rZ.(0) != rA.(0) then true else false; (* V *)
 
       method decode =
         let testBin = Array.sub ir 0 3 in
         (match testBin with
 
-          (* Add/Sub or Move Shifted Register instruction *)
           | [|false; false; false|] ->
             (match (ir.(3), ir.(4)) with
 
@@ -95,16 +94,28 @@ class cpu =
                   | true -> operation <- "SUB"
                 );
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
-                dest <- int_of_binary_unsigned (Array.sub ir 13 3)
+                dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+                shouldSetCondCodes <- true
 
-              (* Move Shifted Register instruction *)
-              | _ -> ()
+              (* Move Shifted Register *)
+              | _ ->
+                dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+                rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+                muxB <- Array.append (Array.make 27 false) (Array.sub ir 5 5);
+                shouldSetCondCodes <- false;
+                (match (ir.(3), ir.(4)) with
+                  | (false, false) -> operation <- "LSL"
+                  | (false, true) -> operation <- "LSR"
+                  | (true, false) -> operation <- "ASR"
+                  | _ -> failwith "Error! Invalid move shifted register instruction!"
+                )
             );
 
           (* Move/Compare/Add/Sub immediate *)
           | [|false; false; true|] ->
             dest <- int_of_binary_unsigned (Array.sub ir 5 3);
-            rA <- Array.append (Array.make 26 ir.(8)) (Array.sub ir 8 8);
+            rA <- Array.append (Array.make 24 ir.(8)) (Array.sub ir 8 8);
+            shouldSetCondCodes <- true;
             (match (ir.(3), ir.(4)) with
 
               | (false, false) ->
@@ -120,7 +131,7 @@ class cpu =
               | (true, true) ->
                 operation <- "SUB";
                 muxB <- generalRegisters.(dest)
-            );
+            )
 
           | [|false; true; false|] ->
             (match ir.(3) with
@@ -136,6 +147,7 @@ class cpu =
                     dest <- int_of_binary_unsigned (Array.sub ir 13 3);
                     rA <- generalRegisters.(dest);
                     muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
+                    shouldSetCondCodes <- true;
                     (let opArray = Array.sub ir 6 4 in
                       match opArray with
                         | [|false; false; false; false|] -> operation <- "AND"
@@ -156,8 +168,9 @@ class cpu =
                         | [|true; true; true; true|] -> operation <- "MVN"
                     )
 
-                  (* Hi Register Operations *)
+                  (* Hi Register Operations / Branch Exchange *)
                   | true ->
+                    shouldSetCondCodes <- false;
                     (match ir.(8) with
                       | false -> rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 13 3))
                       | true -> rA <- generalRegisters.((int_of_binary_unsigned (Array.sub ir 13 3)) + 8)
@@ -181,7 +194,8 @@ class cpu =
                   memOperation <- "LDR";
                   dest <- int_of_binary_unsigned (Array.sub ir 5 3);
                   rA <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
-                  muxB <- generalRegisters.(15)
+                  muxB <- generalRegisters.(15);
+                  shouldSetCondCodes <- false
               )
 
               | true ->
@@ -190,6 +204,7 @@ class cpu =
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                 muxB <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 7 3));
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+                shouldSetCondCodes <- false;
                 (match ir.(6) with
 
                   (* Load/store with register offset *)
@@ -221,6 +236,7 @@ class cpu =
             rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
             muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
             dest <- int_of_binary_unsigned (Array.sub ir 13 3);
+            shouldSetCondCodes <- false;
             (match (ir.(4), ir.(3)) with
               | (false, false) -> memOperation <- "STR"
               | (false, true) -> memOperation <- "LDR"
@@ -229,6 +245,7 @@ class cpu =
             )
 
           | [|true; false; false|] ->
+            shouldSetCondCodes <- false;
             (match ir.(3) with
 
               (* Load/store halfword *)
@@ -257,6 +274,7 @@ class cpu =
             )
 
           | [|true; false; true|] ->
+            shouldSetCondCodes <- false;
             (match ir.(3) with
 
               (* Load address *)
@@ -299,6 +317,7 @@ class cpu =
             )
 
           | [|true; true; false|] ->
+            shouldSetCondCodes <- false;
             (match ir.(3) with
 
               (* Multiple load/store *)
@@ -319,6 +338,7 @@ class cpu =
             )
 
           | [|true; true; true|] ->
+            shouldSetCondCodes <- false;
             (match ir.(3) with
 
               (* Unconditional branch *)
@@ -336,6 +356,22 @@ class cpu =
         (match operation with
           | "ADD" -> rZ <- plus rA muxB
           | "SUB" -> rZ <- minus rA muxB
+          | "AND" -> rZ <- logical_and rA muxB
+          | "EOR" -> rZ <- logical_xor rA muxB
+          | "LSL" -> rZ <- logical_shift_left rA (int_of_binary_unsigned muxB)
+          | "LSR" -> rZ <- logical_shift_right rA (int_of_binary_unsigned muxB)
+          | "ASR" -> rZ <- arith_shift_right rA (int_of_binary_unsigned muxB)
+          | "ADC" -> rZ <- plus rA (plus muxB [|conditionCodes.(2)|])
+          | "SBC" -> rZ <- minus rA (plus muxB [|not conditionCodes.(2)|])
+          | "ROR" -> rZ <- rotate_right rA (int_of_binary_unsigned muxB)
+          | "TST" -> rZ <- logical_and rA muxB
+          | "NEG" -> rZ <- minus (Array.make 32 false) rA
+          | "CMP" -> rZ <- minus rA muxB
+          | "CMN" -> rZ <- plus rA muxB
+          | "ORR" -> rZ <- logical_or rA muxB
+          | "MUL" -> () (* TODO: Booth's Multiplication algorithm *)
+          | "BIC" -> rZ <- logical_and rA (logical_not muxB)
+          | "MVN" -> rZ <- logical_not muxB
           | _ -> failwith "Invalid ALU command!"
         );
         self#memory

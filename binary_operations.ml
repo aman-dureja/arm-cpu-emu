@@ -1,5 +1,12 @@
 (* Functions for operations on binary numbers represented as arrays of booleans *)
 
+let ba_of_bs bs =
+  let boolArray = Array.make (String.length bs) false in
+  for i = 0 to (String.length bs) - 1 do
+    if bs.[i] == '1' then boolArray.(i) <- true
+  done;
+  boolArray
+
 let int_of_binary_unsigned bin =
   let result = ref 0.0 in
   let iterFunc i x =
@@ -109,27 +116,55 @@ let plus op1 op2 =
 let minus op1 op2 =
   plus op1 (twos_compl op2);;
 
-let logical_shift_left op1 =
+let logical_shift_left op1 amount =
   let shifted = Array.make (Array.length op1) false in
-  Array.iteri (fun i x -> if i = 0 then () else shifted.(i-1) <- x) op1;
+  if amount < Array.length op1 then begin
+    let startIndex = (amount mod (Array.length op1)) - 1 in
+    Array.iteri (fun i x -> if i <= startIndex then () else shifted.((i - amount) mod (Array.length op1)) <- x) op1;
+  end;
   shifted;;
 
-let logical_shift_right op1 =
+let logical_shift_right op1 amount =
   let shifted = Array.make (Array.length op1) false in
-  Array.iteri (fun i x -> if i > (Array.length op1) - 2 then () else shifted.(i+1) <- x) op1;
+  if amount < Array.length op1 then begin
+    let endIndex = (Array.length op1) - amount - 1 in
+    Array.iteri (fun i x -> if i > endIndex then () else shifted.((i + amount) mod (Array.length op1)) <- x) op1;
+  end;
   shifted;;
 
-let arith_shift_left op1 =
-  let shifted = Array.make (Array.length op1) false in
-  Array.iteri (fun i x -> if i = 0 then () else shifted.(i-1) <- x) op1;
-  shifted.((Array.length shifted) - 1) <- op1.(0);
+let arith_shift_left op1 amount =
+  let shifted = Array.make (Array.length op1) op1.(0) in
+  if amount < Array.length op1 then begin
+    let startIndex = (amount mod (Array.length op1)) - 1 in
+    Array.iteri (fun i x -> if i <= startIndex then () else shifted.((i - amount) mod (Array.length op1)) <- x) op1;
+  end;
   shifted;;
 
-let arith_shift_right op1 =
-  let shifted = Array.make (Array.length op1) false in
-  Array.iteri (fun i x -> if i > (Array.length op1) - 2 then () else shifted.(i+1) <- x) op1;
-  shifted.(0) <- op1.((Array.length op1) - 1);
+let arith_shift_right op1 amount =
+  let shifted = Array.make (Array.length op1) op1.(0) in
+  if amount < Array.length op1 then begin
+    let endIndex = (Array.length op1) - amount - 1 in
+    Array.iteri (fun i x -> if i > endIndex then () else shifted.((i + amount) mod (Array.length op1)) <- x) op1;
+  end;
   shifted;;
+
+let rec rotate_left op1 amount =
+  if amount = 0 then op1
+  else begin
+    let rotated = Array.make (Array.length op1) false in
+    Array.iteri (fun i x -> if i = 0 then () else rotated.(i-1) <- x) op1;
+    rotated.((Array.length rotated) - 1) <- op1.(0);
+    rotate_left rotated (amount - 1)
+  end;;
+
+let rec rotate_right op1 amount =
+  if amount = 0 then op1
+  else begin
+    let rotated = Array.make (Array.length op1) false in
+    Array.iteri (fun i x -> if i > (Array.length op1) - 2 then () else rotated.(i+1) <- x) op1;
+    rotated.(0) <- op1.((Array.length op1) - 1);
+    rotate_right rotated (amount - 1)
+  end;;
 
 let logical_and op1 op2 =
   let anded = Array.make (Array.length op1) false in
