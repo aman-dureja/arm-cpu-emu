@@ -1,15 +1,5 @@
 (* Functions for operations on binary numbers represented as arrays of booleans *)
 
-let twos_compl bin =
-  let complement = Array.copy bin in
-  let foundOne = ref false in
-  let complFunc i x =
-    if !foundOne then complement.(i) <- not complement.(i)
-    else if complement.(i) then foundOne := true
-  in
-  Array.iteri complFunc bin;
-  complement;;
-
 let int_of_binary_unsigned bin =
   let result = ref 0.0 in
   let iterFunc i x =
@@ -19,6 +9,65 @@ let int_of_binary_unsigned bin =
   in
   Array.iteri iterFunc bin;
   int_of_float !result;;
+
+let comp_eq_unsigned op1 op2 =
+  let equal = ref true in
+  Array.iter2 (fun x y -> if x != y then equal := false) op1 op2;
+  !equal;;
+
+let comp_lt_unsigned op1 op2 =
+  let index1 = ref (-1) in
+  let index2 = ref (-1) in
+  let oneFound = ref false in
+  Array.iteri (fun i x ->
+    if not !oneFound then
+      if x then begin
+        index1 := i;
+        oneFound := true
+      end) op1;
+  oneFound := false;
+  Array.iteri (fun i x ->
+    if not !oneFound then
+      if x then begin
+        index2 := i;
+        oneFound := true
+      end) op2;
+  if !index1 = -1 && !index2 != -1 then true
+  else if !index2 = -1 && !index1 != -1 then false
+  else if !index1 = -1 && !index2 = -1 then false
+  else !index1 > !index2;;
+
+let comp_gt_unsigned op1 op2 =
+  let index1 = ref (-1) in
+  let index2 = ref (-1) in
+  let oneFound = ref false in
+  Array.iteri (fun i x ->
+    if not !oneFound then
+      if x then begin
+        index1 := i;
+        oneFound := true
+      end) op1;
+  oneFound := false;
+  Array.iteri (fun i x ->
+    if not !oneFound then
+      if x then begin
+        index2 := i;
+        oneFound := true
+      end) op2;
+  if !index1 = -1 && !index2 != -1 then false
+  else if !index2 = -1 && !index1 != -1 then true
+  else if !index1 = -1 && !index2 = -1 then false
+  else !index1 < !index2;;
+
+let twos_compl bin =
+  let complement = Array.copy bin in
+  let foundOne = ref false in
+  let complFunc i x =
+    if !foundOne then complement.(i) <- not complement.(i)
+    else if x then foundOne := true
+  in
+  Array.iteri complFunc bin;
+  complement;;
 
 let int_of_binary_signed bin =
   if not bin.(0) then int_of_binary_unsigned bin
