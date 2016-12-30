@@ -21,7 +21,8 @@ class cpu =
       val mutable memoryOp : bool = false
       val mutable memOperation : string = "none"
       val mutable regList : int array = [||]
-      val mutable baseReg : int = 0
+      val mutable multiBaseReg : int = 0
+      val mutable strReg : int = 0
       val mutable byteWordLoadStoreFlag : string = "none"
       (* Condition code array: [|N; Z; C; V|] *)
       val mutable conditionCodes : bool array = Array.make 4 false;
@@ -37,6 +38,7 @@ class cpu =
       val mutable ir : bool array = Array.make 16 false
 
       (* Methods and Instruction Execution Stages *)
+      val mutable shouldWriteback: bool = false
 
       (* Below method exclusively for testing! *)
       method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
@@ -81,6 +83,7 @@ class cpu =
         (match testBin with
 
           | [|false; false; false|] ->
+            shouldWriteback <- true;
             (match (ir.(3), ir.(4)) with
 
               (* Add/Sub instruction *)
@@ -113,6 +116,7 @@ class cpu =
 
           (* Move/Compare/Add/Sub immediate *)
           | [|false; false; true|] ->
+            shouldWriteback <- true;
             dest <- int_of_binary_unsigned (Array.sub ir 5 3);
             rA <- Array.append (Array.make 24 ir.(8)) (Array.sub ir 8 8);
             shouldSetCondCodes <- true;
@@ -134,6 +138,7 @@ class cpu =
             )
 
           | [|false; true; false|] ->
+            shouldWriteback <- true;
             (match ir.(3) with
 
               | false ->
@@ -210,7 +215,7 @@ class cpu =
                   (* Load/store with register offset *)
                   | false ->
                     (match ir.(4) with
-                      | false -> memOperation <- "STR"
+                      | false -> memOperation <- "STR"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
                       | true -> memOperation <- "LDR"
                     );
                     (match ir.(5) with
@@ -221,7 +226,7 @@ class cpu =
                   (* Load/store sign-extended byte/halfword *)
                   | true ->
                     (match (ir.(5), ir.(4)) with
-                      | (false, false) -> memOperation <- "STRH"
+                      | (false, false) -> memOperation <- "STRH"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
                       | (false, true) -> memOperation <- "LDRH"
                       | (true, false) -> memOperation <- "LDSB"
                       | (true, true) -> memOperation <- "LDSH"
@@ -238,13 +243,14 @@ class cpu =
             dest <- int_of_binary_unsigned (Array.sub ir 13 3);
             shouldSetCondCodes <- false;
             (match (ir.(4), ir.(3)) with
-              | (false, false) -> memOperation <- "STR"
+              | (false, false) -> memOperation <- "STR"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
               | (false, true) -> memOperation <- "LDR"
-              | (true, false) -> memOperation <- "STRB"
+              | (true, false) -> memOperation <- "STRB"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
               | (true, true) -> memOperation <- "LDRB"
             )
 
           | [|true; false; false|] ->
+            shouldWriteback <- true;
             shouldSetCondCodes <- false;
             (match ir.(3) with
 
@@ -256,7 +262,7 @@ class cpu =
                 muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3);
                 (match ir.(4) with
-                  | false -> memOperation <- "STRH"
+                  | false -> memOperation <- "STRH"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
                   | true -> memOperation <- "LDRH"
                 )
 
@@ -268,12 +274,13 @@ class cpu =
                 muxB <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
                 operation <- "ADD";
                 (match ir.(4) with
-                  | false -> memOperation <- "STR"
+                  | false -> memOperation <- "STR"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
                   | true -> memOperation <- "LDR"
                 )
             )
 
           | [|true; false; true|] ->
+            shouldWriteback <- true;
             shouldSetCondCodes <- false;
             (match ir.(3) with
 
@@ -303,10 +310,11 @@ class cpu =
 
                   (* Push/pop registers *)
                   | true ->
+                    shouldWriteback <- false;
                     memoryOp <- true;
                     regList <- [||];
                     let registerList = Array.sub ir 8 8 in
-                    Array.iteri (fun i x -> if x then regList <- Array.append regList [|i|]) registerList;
+                    Array.iteri (fun i x -> if x then regList <- Array.append regList [|7-i|]) registerList;
                     (match (ir.(4), ir.(7)) with
                       | (false, false) -> memOperation <- "PUSH"
                       | (false, true) -> memOperation <- "PUSHLR"
@@ -317,6 +325,7 @@ class cpu =
             )
 
           | [|true; true; false|] ->
+            shouldWriteback <- false;
             shouldSetCondCodes <- false;
             (match ir.(3) with
 
@@ -324,9 +333,9 @@ class cpu =
               | false ->
                 memoryOp <- true;
                 regList <- [||];
-                baseReg <- int_of_binary_unsigned (Array.sub ir 5 3);
+                multiBaseReg <- int_of_binary_unsigned (Array.sub ir 5 3);
                 let registerList = Array.sub ir 8 8 in
-                Array.iteri (fun i x -> if x then regList <- Array.append regList [|i|]) registerList;
+                Array.iteri (fun i x -> if x then regList <- Array.append regList [|7-i|]) registerList;
                 (match ir.(4) with
                   | false -> memOperation <- "STMIA"
                   | true -> memOperation <- "LDMIA"
@@ -338,6 +347,7 @@ class cpu =
             )
 
           | [|true; true; true|] ->
+            shouldWriteback <- false;
             shouldSetCondCodes <- false;
             (match ir.(3) with
 
@@ -374,11 +384,113 @@ class cpu =
           | "MVN" -> rZ <- logical_not muxB
           | _ -> failwith "Invalid ALU command!"
         );
+        if shouldSetCondCodes then self#setConditionCodes;
         self#memory
 
       method memory =
+        if memoryOp then
+          let memAddress = int_of_binary_unsigned rZ in
+          match memOperation with
+            | "LDR" ->
+              rY <- Array.append (Array.append (Array.append generalRegisters.(memAddress) generalRegisters.(memAddress+1)) generalRegisters.(memAddress+2)) generalRegisters.(memAddress+3)
+
+            | "STR" ->
+              for i = 0 to 3 do
+                memory.(memAddress+i) <- Array.sub generalRegisters.(strReg) (8 * i) 8
+              done
+
+            | "STRH" ->
+              for i = 0 to 1 do
+                memory.(memAddress+i) <- Array.sub generalRegisters.(strReg) (16 + 8 * i) 8
+              done
+
+            | "LDRH" ->
+              rY <- Array.append (Array.make 16 false) (Array.append generalRegisters.(memAddress) generalRegisters.(memAddress+1))
+
+            | "LDSB" ->
+              rY <- Array.append (Array.make 24 generalRegisters.(memAddress).(0)) generalRegisters.(memAddress)
+
+            | "LDSH" ->
+              rY <- Array.append (Array.make 16 generalRegisters.(memAddress).(0)) (Array.append generalRegisters.(memAddress) generalRegisters.(memAddress+1))
+
+            | "STRB" ->
+              memory.(memAddress) <- Array.sub generalRegisters.(strReg) 24 8
+
+            | "LDRB" ->
+              rY <- Array.append (Array.make 24 false) generalRegisters.(memAddress)
+
+            | "PUSH" ->
+              let fourBin = binary_of_int 4 in
+              Array.iter (fun regNum ->
+                generalRegisters.(sp) <- minus generalRegisters.(sp) fourBin;
+                for i = 0 to 3 do
+                  memory.(sp+i) <- Array.sub generalRegisters.(regNum) (8 * i) 8
+                done
+              ) regList
+
+            | "PUSHLR" ->
+              regList <- Array.append regList [|14|];
+              let fourBin = binary_of_int 4 in
+              Array.iter (fun regNum ->
+                generalRegisters.(sp) <- minus generalRegisters.(sp) fourBin;
+                for i = 0 to 3 do
+                  memory.(sp+i) <- Array.sub generalRegisters.(regNum) (8 * i) 8
+                done
+              ) regList;
+
+            | "POP" ->
+              let fourBin = binary_of_int 4 in
+              for i = (Array.length regList) - 1 downto 0 do
+                let regNum = regList.(i) in
+                let tempBinArray = ref [||] in
+                for i = 0 to 3 do
+                  tempBinArray := Array.append !tempBinArray memory.(sp+i)
+                done;
+                generalRegisters.(regNum) <- !tempBinArray;
+                generalRegisters.(sp) <- plus generalRegisters.(sp) fourBin
+              done
+
+            | "POPPC" ->
+              regList <- Array.append regList [|15|];
+              let fourBin = binary_of_int 4 in
+              for i = (Array.length regList) - 1 downto 0 do
+                let regNum = regList.(i) in
+                let tempBinArray = ref [||] in
+                for i = 0 to 3 do
+                  tempBinArray := Array.append !tempBinArray memory.(sp+i)
+                done;
+                generalRegisters.(regNum) <- !tempBinArray;
+                generalRegisters.(sp) <- plus generalRegisters.(sp) fourBin
+              done
+
+            | "STMIA" ->
+              let fourBin = binary_of_int 4 in
+              Array.iter (fun regNum ->
+                for i = 0 to 3 do
+                  memory.(i + int_of_binary_unsigned generalRegisters.(multiBaseReg)) <- Array.sub generalRegisters.(regNum) (8 * i) 8
+                done;
+                generalRegisters.(multiBaseReg) <- plus generalRegisters.(multiBaseReg) fourBin;
+              ) regList
+
+            | "LDMIA" ->
+              let fourBin = binary_of_int 4 in
+              for i = (Array.length regList) - 1 downto 0 do
+                let regNum = regList.(i) in
+                let tempBinArray = ref [||] in
+                for i = 0 to 3 do
+                  tempBinArray := Array.append !tempBinArray memory.(i + int_of_binary_unsigned generalRegisters.(multiBaseReg))
+                done;
+                generalRegisters.(regNum) <- !tempBinArray;
+                generalRegisters.(multiBaseReg) <- plus generalRegisters.(multiBaseReg) fourBin
+              done
+
+            | _ -> failwith "Invalid memory operation!"
+
+        else rY <- rZ;
 
         self#writeback
 
-      method writeback = ()
+      method writeback =
+        if shouldWriteback then generalRegisters.(dest) <- rY
+
     end;;
