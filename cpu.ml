@@ -2,7 +2,9 @@
 
 open Binary_operations;;
 
-(* TODO: fix bit shifted things for stuff like Offset5 and Word8, etc *)
+(* TODO: fix bit shifted things for stuff like Offset5 and Word8, etc;
+         just do an Arith Shift Left by the appropriate amount before using the value *)
+(* TODO: branching *)
 
 (* Central Processing Unit *)
 class cpu =

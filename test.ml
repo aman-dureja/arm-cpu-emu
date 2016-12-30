@@ -21,3 +21,7 @@ for i = 1 to 3 do
 done;;
 
 processor#printState;;
+
+let shifted = arith_shift_left (binary_of_int 28) 1;;
+
+Array.iter (fun x -> print_endline (string_of_bool x)) shifted;;
