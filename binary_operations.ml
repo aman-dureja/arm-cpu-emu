@@ -69,11 +69,10 @@ let comp_gt_unsigned op1 op2 =
 let twos_compl bin =
   let complement = Array.copy bin in
   let foundOne = ref false in
-  let complFunc i x =
+  for i = (Array.length bin) - 1 downto 0 do
     if !foundOne then complement.(i) <- not complement.(i)
-    else if x then foundOne := true
-  in
-  Array.iteri complFunc bin;
+    else if complement.(i) then foundOne := true
+  done;
   complement;;
 
 let int_of_binary_signed bin =

@@ -24,4 +24,6 @@ processor#printState;;
 
 let shifted = arith_shift_left (binary_of_int 28) 1;;
 
-Array.iter (fun x -> print_endline (string_of_bool x)) shifted;;
+let added = plus (binary_of_int 5) (binary_of_int (-3));;
+
+Array.iter (fun x -> print_endline (string_of_bool x)) added;;
