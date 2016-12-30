@@ -40,8 +40,10 @@ class cpu =
       (* Methods and Instruction Execution Stages *)
       val mutable shouldWriteback: bool = false
 
-      (* Below method exclusively for testing! *)
+      (* Getters and setters exclusively for testing! *)
       method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
+      method getMem = memory
+      method getGeneralRegisters = generalRegisters
 
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
