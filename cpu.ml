@@ -40,12 +40,25 @@ class cpu =
       val mutable ir : bool array = Array.make 16 false
 
       (* Methods and Instruction Execution Stages *)
-      val mutable shouldWriteback: bool = false
+      val mutable shouldWriteback : bool = false
 
       (* Getters and setters exclusively for testing! *)
       method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
       method getMem = memory
+      method getIr = ir
       method getGeneralRegisters = generalRegisters
+      method setMem updated = memory <- updated
+      method setGeneralRegisters updated = generalRegisters <- updated
+      method setRa updated = rA <- updated
+      method setRm updated = rM <- updated
+      method setRz updated = rZ <- updated
+      method setRy updated = rY <- updated
+      method setMuxB updated = muxB <- updated
+      method getRa = rA
+      method getRm = rM
+      method getRz = rZ
+      method getRy = rY
+      method getMuxB = muxB
 
       method validateRegNumber n =
         if n < 0 || n > 31 then failwith "Invalid register number!"
@@ -65,12 +78,8 @@ class cpu =
         Printf.printf "\n"
 
       method loadProgramInMem byteArray =
+        if Array.length byteArray > 2048 then failwith "Error! Program too large to fit in memory!";
         Array.iteri (fun i byte -> memory.(i) <- byte) byteArray
-
-      method fetch =
-        ir <- Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned (plus generalRegisters.(pc) (binary_of_int 1)));
-        generalRegisters.(pc) <- plus generalRegisters.(pc) (binary_of_int 2);
-        self#decode
 
       method setConditionCodes =
         conditionCodes.(0) <- rA.(0) = true; (* N *)
@@ -81,6 +90,10 @@ class cpu =
         else if operation = "SUB" then
           if comp_lt_unsigned muxB rA then conditionCodes.(2) <- true;
         conditionCodes.(3) <- if rA.(0) = muxB.(0) && rZ.(0) != rA.(0) then true else false; (* V *)
+
+      method fetch =
+        ir <- Array.append memory.(int_of_binary_unsigned generalRegisters.(pc)) memory.(int_of_binary_unsigned (plus generalRegisters.(pc) (binary_of_int 1)));
+        generalRegisters.(pc) <- plus generalRegisters.(pc) (binary_of_int 2)
 
       method decode =
         let testBin = Array.sub ir 0 3 in
@@ -364,7 +377,6 @@ class cpu =
 
           | _ -> failwith "Error! Invalid instruction!"
         );
-        self#execute
 
       method execute =
         (match operation with
@@ -389,7 +401,6 @@ class cpu =
           | _ -> failwith "Invalid ALU command!"
         );
         if shouldSetCondCodes then self#setConditionCodes;
-        self#memory
 
       method memory =
         if memoryOp then
@@ -490,11 +501,19 @@ class cpu =
 
             | _ -> failwith "Invalid memory operation!"
 
-        else rY <- rZ;
-
-        self#writeback
+        else rY <- rZ
 
       method writeback =
         if shouldWriteback then generalRegisters.(dest) <- rY
+
+      method runProgram =
+        self#fetch;
+        if ir = Array.make 16 false then () else begin
+          self#decode;
+          self#execute;
+          self#memory;
+          self#writeback;
+          self#runProgram
+        end
 
     end;;

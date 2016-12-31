@@ -7,18 +7,16 @@ let processor = new cpu;;
 
 let codeArray : bool array array = Array.make 6 (Array.make 8 true);;
 
-codeArray.(0) <- ba_of_bs "00100010";;
-codeArray.(1) <- ba_of_bs "00000101";;
+codeArray.(0) <- ba_of_bs "00011100";;
+codeArray.(1) <- ba_of_bs "00100000";;
 codeArray.(2) <- ba_of_bs "00100011";;
 codeArray.(3) <- ba_of_bs "00000011";;
-codeArray.(4) <- ba_of_bs "00011000";;
-codeArray.(5) <- ba_of_bs "11010001";;
+codeArray.(4) <- ba_of_bs "00000000";;
+codeArray.(5) <- ba_of_bs "00000000";;
 
 processor#loadProgramInMem codeArray;;
 
-for i = 1 to 3 do
-  processor#fetch
-done;;
+processor#runProgram;;
 
 processor#printState;;
 
@@ -27,3 +25,7 @@ let shifted = arith_shift_left (binary_of_int 28) 1;;
 let added = plus (binary_of_int 5) (binary_of_int (-3));;
 
 Array.iter (fun x -> print_endline (string_of_bool x)) added;;
+
+print_endline (bs_of_ba (ba_of_bs "101010101010110100"));;
+
+Array.iter (fun x -> print_endline (string_of_bool x)) (ba_of_bs "110100");;

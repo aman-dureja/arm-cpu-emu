@@ -1,11 +1,12 @@
 (* Functions for operations on binary numbers represented as arrays of booleans *)
 
+(* TODO: use Array.init wherever possible! *)
+
 let ba_of_bs bs =
-  let boolArray = Array.make (String.length bs) false in
-  for i = 0 to (String.length bs) - 1 do
-    if bs.[i] == '1' then boolArray.(i) <- true
-  done;
-  boolArray
+  Array.init (String.length bs) (fun i -> if bs.[i] == '1' then true else false)
+
+let bs_of_ba ba =
+  String.init (Array.length ba) (fun i -> if ba.(i) then '1' else '0')
 
 let int_of_binary_unsigned bin =
   let result = ref 0.0 in
