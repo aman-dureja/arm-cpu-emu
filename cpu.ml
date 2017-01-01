@@ -60,9 +60,6 @@ class cpu =
       method getRy = rY
       method getMuxB = muxB
 
-      method validateRegNumber n =
-        if n < 0 || n > 31 then failwith "Invalid register number!"
-
       method printState =
         let boolsToInts a = Array.map (fun x -> if x then 1 else 0) a in
         let printReg i reg =
@@ -359,8 +356,37 @@ class cpu =
                 )
 
               (* Conditional branch *)
-              | true -> ()
-
+              | true ->
+                let offset = Array.append (Array.make 24 ir.(8)) (Array.sub ir 8 8) in
+                let n = conditionCodes.(0) in
+                let z = conditionCodes.(1) in
+                let c = conditionCodes.(2) in
+                let v = conditionCodes.(3) in
+                let shouldBranch = (match Array.sub ir 4 4 with
+                  | [|false; false; false; false|] -> z
+                  | [|false; false; false; true|] -> not z
+                  | [|false; false; true; false|] -> c
+                  | [|false; false; true; true|] -> not c
+                  | [|false; true; false; false|] -> n
+                  | [|false; true; false; true|] -> not n
+                  | [|false; true; true; false|] -> v
+                  | [|false; true; true; true|] -> not v
+                  | [|true; false; false; false|] -> c && not z
+                  | [|true; false; false; true|] -> not c || z
+                  | [|true; false; true; false|] -> (n && v) || (not n && not v)
+                  | [|true; false; true; true|] -> (n && not v) || (not n && v)
+                  | [|true; true; false; false|] -> not z && ((n && v) || (not n && not v))
+                  | [|true; true; false; true|] -> z || (n && not v) || (not n && v)
+                  | _ -> failwith "Invalid branch condition!"
+                ) in
+                if shouldBranch then begin
+                  memoryOp <- false;
+                  operation <- "ADD";
+                  rA <- generalRegisters.(pc);
+                  muxB <- offset;
+                  shouldWriteback <- true;
+                  dest <- pc
+                end
             )
 
           | [|true; true; true|] ->
@@ -369,10 +395,35 @@ class cpu =
             (match ir.(3) with
 
               (* Unconditional branch *)
-              | false -> ()
+              | false ->
+                shouldWriteback <- true;
+                memoryOp <- false;
+                dest <- pc;
+                rA <- generalRegisters.(pc);
+                muxB <- Array.append (Array.make 21 ir.(5)) (Array.sub ir 5 11);
+                operation <- "ADD"
 
               (* Long branch with link *)
-              | true -> ()
+              | true ->
+                memoryOp <- false;
+                shouldWriteback <- true;
+                operation <- "ADD";
+                let offset = Array.append (Array.make 21 false) (Array.sub ir 5 11) in
+                (match ir.(4) with
+
+                  (* Instruction 1; offset is  upper 11 bits of target address *)
+                  | false ->
+                    dest <- lr;
+                    rA <- generalRegisters.(pc);
+                    muxB <- logical_shift_left offset 12
+
+                  (* Instruction 2; offset is lower 11 bits of target address *)
+                  | true ->
+                    dest <- pc;
+                    rA <- binary_of_int 0;
+                    muxB <- plus generalRegisters.(lr) (logical_shift_left offset 1);
+                    generalRegisters.(lr) <- (logical_or generalRegisters.(pc) (binary_of_int 1))
+                )
             )
 
           | _ -> failwith "Error! Invalid instruction!"
