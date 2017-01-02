@@ -133,23 +133,23 @@ class cpu =
           | [|false; false; true|] ->
             shouldWriteback <- true;
             dest <- int_of_binary_unsigned (Array.sub ir 5 3);
-            rA <- Array.append (Array.make 24 ir.(8)) (Array.sub ir 8 8);
+            muxB <- Array.append (Array.make 24 ir.(8)) (Array.sub ir 8 8);
             shouldSetCondCodes <- true;
             (match (ir.(3), ir.(4)) with
 
               | (false, false) ->
                 operation <- "ADD";
-                muxB <- Array.make 32 false
+                rA <- Array.make 32 false
 
-              | (false, true) -> operation <- "CMP" (* TODO: implement this *)
+              | (false, true) -> operation <- "CMP"
 
               | (true, false) ->
                 operation <- "ADD";
-                muxB <- generalRegisters.(dest)
+                rA <- generalRegisters.(dest)
 
               | (true, true) ->
                 operation <- "SUB";
-                muxB <- generalRegisters.(dest)
+                rA <- generalRegisters.(dest)
             )
 
           | [|false; true; false|] ->
