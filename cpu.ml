@@ -43,12 +43,13 @@ class cpu =
       val mutable shouldWriteback : bool = false
 
       (* Getters and setters exclusively for testing! *)
-      method setIr bin = ir <- Array.append bin (Array.make (32 - Array.length bin) false)
+      method setIr bin = ir <- bin
       method getMem = memory
       method getIr = ir
       method getGeneralRegisters = generalRegisters
       method setMem updated = memory <- updated
-      method setGeneralRegisters updated = generalRegisters <- updated
+      method setGeneralRegisters reg updated = generalRegisters.(reg) <- updated
+      method setGeneralRegistersAll updated = generalRegisters <- updated
       method setRa updated = rA <- updated
       method setRm updated = rM <- updated
       method setRz updated = rZ <- updated
@@ -449,6 +450,7 @@ class cpu =
           | "MUL" -> () (* TODO: Booth's Multiplication algorithm *)
           | "BIC" -> rZ <- logical_and rA (logical_not muxB)
           | "MVN" -> rZ <- logical_not muxB
+          | "BX" -> generalRegisters.(lr) <- generalRegisters.(pc); generalRegisters.(pc) <- muxB;
           | _ -> failwith "Invalid ALU command!"
         );
         if shouldSetCondCodes then self#setConditionCodes;
