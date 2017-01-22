@@ -1,10 +1,6 @@
-(* The main CPU object *)
+(* The main CPU class *)
 
 open Binary_operations;;
-
-(* TODO: fix bit shifted things for stuff like Offset5 and Word8, etc;
-         just do an Arith Shift Left by the appropriate amount before using the value *)
-(* TODO: branching *)
 
 (* Central Processing Unit *)
 class cpu =
@@ -214,6 +210,7 @@ class cpu =
                   memOperation <- "LDR";
                   dest <- int_of_binary_unsigned (Array.sub ir 5 3);
                   rA <- Array.append (Array.make 24 false) (Array.sub ir 8 8);
+                  rA <- arith_shift_left rA 2;
                   muxB <- generalRegisters.(15);
                   shouldSetCondCodes <- false
               )
@@ -275,6 +272,7 @@ class cpu =
                 operation <- "ADD";
                 rA <- generalRegisters.(int_of_binary_unsigned (Array.sub ir 10 3));
                 muxB <- Array.append (Array.make 27 ir.(5)) (Array.sub ir 5 5);
+                muxB <- arith_shift_left muxB 1;
                 dest <- int_of_binary_unsigned (Array.sub ir 13 3);
                 (match ir.(4) with
                   | false -> memOperation <- "STRH"; strReg <- int_of_binary_unsigned (Array.sub ir 13 3); shouldWriteback <- false
