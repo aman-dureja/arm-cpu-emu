@@ -445,7 +445,7 @@ class cpu =
           | "CMP" -> rZ <- minus rA muxB
           | "CMN" -> rZ <- plus rA muxB
           | "ORR" -> rZ <- logical_or rA muxB
-          | "MUL" -> () (* TODO: Booth's Multiplication algorithm *)
+          | "MUL" -> rZ <- binary_of_int (int_of_binary_signed rA * int_of_binary_signed muxB)
           | "BIC" -> rZ <- logical_and rA (logical_not muxB)
           | "MVN" -> rZ <- logical_not muxB
           | "BX" -> generalRegisters.(lr) <- generalRegisters.(pc); generalRegisters.(pc) <- muxB;
