@@ -2,6 +2,8 @@
 
 Software implementation - written in OCAML - of an ARM7TDMI processor core that interprets the ARMv4T THUMB instruction set.
 
+Instruction set documentation here: https://ece.uwaterloo.ca/~ece222/ARM/ARM7-TDMI-manual-pt3.pdf
+
 ### Background
 
 The goal of this project is to emulate as closely as possible the hardware CPU core. As such, it makes use of the general five stage RISC datapath. It makes sense to use a functional programming language like OCAML, as the task of decoding and running binary instructions lends itself well to functional paradigms, which take advantage of the Lambda Calculus.
@@ -36,7 +38,7 @@ To run a program, do the following:
 4. Call the *runProgram* method of the CPU to run the program.
 5. Call the *printState* method of the CPU to view the final state of the registers after the program has been run.
 
-For an example, take a look at the *test.ml* file.
+For an example, take a look at the *sample.ml* file.
 
 ### Next Steps
 

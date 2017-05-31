@@ -67,9 +67,7 @@ class cpu =
           Printf.printf "\n"
         in
         Array.iteri printReg generalRegisters;
-        Printf.printf "RZ: ";
-        Array.iter (fun x -> Printf.printf "%d" x) (boolsToInts rZ);
-        Printf.printf "\n"
+        Printf.printf "\n";
 
       method loadProgramInMem byteArray =
         if Array.length byteArray > 2048 then failwith "Error! Program too large to fit in memory!";

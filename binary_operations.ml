@@ -1,7 +1,5 @@
 (* Functions for operations on binary numbers represented as arrays of booleans *)
 
-(* TODO: use Array.init wherever possible! *)
-
 let ba_of_bs bs =
   Array.init (String.length bs) (fun i -> if bs.[i] == '1' then true else false)
 
@@ -133,12 +131,7 @@ let logical_shift_right op1 amount =
   shifted;;
 
 let arith_shift_left op1 amount =
-  let shifted = Array.make (Array.length op1) op1.(0) in
-  if amount < Array.length op1 then begin
-    let startIndex = (amount mod (Array.length op1)) - 1 in
-    Array.iteri (fun i x -> if i <= startIndex then () else shifted.((i - amount) mod (Array.length op1)) <- x) op1;
-  end;
-  shifted;;
+  logical_shift_left op1 amount
 
 let arith_shift_right op1 amount =
   let shifted = Array.make (Array.length op1) op1.(0) in

@@ -2,24 +2,10 @@
 
 open Cpu;;
 open Binary_operations;;
+open General_test_ops;;
 
-let numFailures = ref 0;;
 let baseBin = ref "";;
 let instruction = ref "";;
-
-let assertEq x y msg =
-  if x <> y then begin
-    numFailures := !numFailures + 1;
-    print_string "\027[31mFailed! \027[0m";
-    print_endline msg
-  end;;
-
-let finishTest () =
-  if !numFailures = 0 then
-    print_endline "\027[32mPASS \027[0m"
-  else
-    Printf.printf "\027[31mFAIL: %d tests failed!\n\027[0m" !numFailures;
-  numFailures := 0;;
 
 let proc = new cpu;;
 let pc = 15;;
@@ -100,25 +86,6 @@ test "Format 2: Add/Subtract instructions..." (fun () ->
   testInstr "SUB R3, R1, R0" (ba_of_bs (!baseBin ^ "01" ^ rN ^ rS ^ rD)) 3 8;
 
   testInstr "subtracting immediate" (ba_of_bs (!baseBin ^ "11" ^ "111" ^ rN ^ rD)) 3 (-4)
-);;
-
-test "Format 3: Move/Compare/Add/Subtract Immediate instructions..." (fun () ->
-  (* Dest register is R3, immediate is -2 *)
-  let tester msg instr expected = testInstr msg (ba_of_bs ("001" ^ instr ^ "01111111110")) 3 expected in
-
-  tester "MOV R3, #-2" "00" (-2);
-
-  proc#setGeneralRegisters 3 (binary_of_int 24);
-  tester "ADD R3, #-2" "10" 22;
-
-  proc#setGeneralRegisters 3 (binary_of_int 24);
-  tester "SUB R3, #-2" "11" 26;
-
-  print_endline " Test CMP";
-  proc#setGeneralRegisters 3 (binary_of_int 4);
-  proc#setIr (ba_of_bs "0010101111111110");
-  executeInstruction ();
-  assertEq proc#getRz (binary_of_int 6)
 );;
 
 print_endline "\027[35mCpu tests complete! \027[0m";;
