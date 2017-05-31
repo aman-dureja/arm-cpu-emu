@@ -7,16 +7,14 @@ let processor = new cpu;;
 
 Printf.printf "This program will load the value 3 into R2, 2 into R3, and store their sum in R1.\n"
 
-let codeArray : bool array array = Array.make 8 (Array.make 8 true);;
+let binaryInstructionsArray : string array = [|
+  "00011100"; "11000010";
+  "00011100"; "10000011";
+  "00011000"; "10011001";
+  "00000000"; "00000000"
+|];;
 
-codeArray.(0) <- ba_of_bs "00011100";;
-codeArray.(1) <- ba_of_bs "11000010";;
-codeArray.(2) <- ba_of_bs "00011100";;
-codeArray.(3) <- ba_of_bs "10000011";;
-codeArray.(4) <- ba_of_bs "00011000";;
-codeArray.(5) <- ba_of_bs "10011001";;
-codeArray.(6) <- ba_of_bs "00000000";;
-codeArray.(7) <- ba_of_bs "00000000";;
+let codeArray : bool array array = Array.map (fun instr -> ba_of_bs instr) binaryInstructionsArray;;
 
 processor#loadProgramInMem codeArray;;
 
